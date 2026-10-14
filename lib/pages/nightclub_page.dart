@@ -1,6 +1,7 @@
 import "package:cp1mobile/models/pessoa.dart";
 import "package:flutter/material.dart";
 import "package:cp1mobile/repositories/pessoa_repository.dart";
+import "package:cp1mobile/widgets/pessoa_item.dart";
 
 //Regra do CP1: o camarote aguenta no máximo 64 pessoas
 const int capacidadeMaxima = 64;
@@ -30,175 +31,230 @@ class _NightclubPageState extends State<NightclubPage> {
       });
     });
   }
+  void mostrarFeedback(String mensagem) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(mensagem),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+  }
+
 
   //Conta só quem ainda está dentro, quem já saiu não entra na conta
   int get pessoasNoAmbiente => listPessoas.where((pessoa) => pessoa.noAmbiente).length;
 
   bool get isFull => pessoasNoAmbiente >= capacidadeMaxima;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
-        title: Text(
-          "Camarote VIP",
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
+  
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      backgroundColor: Colors.deepPurple,
+      title: Text(
+        "Camarote VIP",
+        style: TextStyle(color: Colors.white),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                "Pessoas no ambiente: $pessoasNoAmbiente / $capacidadeMaxima",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      centerTitle: true,
+    ),
+    body: SafeArea(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(
+              "Pessoas no ambiente: $pessoasNoAmbiente / $capacidadeMaxima",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-              Text(
-                isFull ? "Camarote lotado! Não é possível registrar uma nova entrada." : "Pode entrar",
-                style: TextStyle(color: isFull ? Colors.red : Colors.green),
+            ),
+            Text(
+              isFull
+                  ? "Camarote lotado! Não é possível registrar uma nova entrada."
+                  : "Pode entrar",
+              style: TextStyle(
+                color: isFull ? Colors.red : Colors.green,
               ),
-              SizedBox(height: 16),
-              TextField(
-                controller: nomeController,
-                decoration: InputDecoration(
-                  labelText: "Nome",
-                  hintText: "Ex: Maria Silva",
-                  errorText: errorNome,
-                  border: OutlineInputBorder(),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: nomeController,
+              decoration: InputDecoration(
+                labelText: "Nome",
+                hintText: "Ex: Maria Silva",
+                errorText: errorNome,
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: idController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: "Identificação",
+                      hintText: "Ex: 123456",
+                      errorText: errorId,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                 ),
-              ),
-              SizedBox(height: 8),
-              Row(
+                SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: cadastrarPessoa,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                  ),
+                  child: Icon(
+                    Icons.add,
+                    size: 30,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Expanded(
+              child: ListView(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: idController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: "Identificação",
-                        hintText: "Ex: 123456",
-                        errorText: errorId,
-                        border: OutlineInputBorder(),
-                      ),
+                  for (Pessoa pessoa in listPessoas)
+                    PessoaItem(
+                      pessoa: pessoa,
+                      onSaida: () => registrarSaida(pessoa),
                     ),
-                  ),
-                  SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: cadastrarPessoa,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                    ),
-                    child: Icon(Icons.add, size: 30, color: Colors.white),
-                  ),
                 ],
               ),
-              SizedBox(height: 16),
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (Pessoa pessoa in listPessoas)
-                      Container(
-                        margin: EdgeInsets.symmetric(vertical: 2),
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(6),
-                          color: Colors.grey[200],
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    pessoa.nome,
-                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                                  ),
-                                  Text("ID: ${pessoa.identificacao}"),
-                                  //TODO: formatar essa data com o intl
-                                  Text("Entrada: ${pessoa.dataEntrada}"),
-                                  Text("Situação: ${pessoa.situacao}"),
-                                ],
-                              ),
-                            ),
-                            TextButton(
-                              //Se a pessoa já saiu o botão fica desabilitado
-                              onPressed: pessoa.noAmbiente ? () => registrarSaida(pessoa) : null,
-                              child: Text("Saída"),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
+    ),
+  );
+}
+
+
+
+void cadastrarPessoa() {
+  String nome = nomeController.text.trim();
+  String identificacao = idController.text.trim();
+
+  // Não permite campos vazios
+  if (nome.isEmpty || identificacao.isEmpty) {
+    setState(() {
+      errorNome = nome.isEmpty
+          ? "O nome não pode ser vazio"
+          : null;
+      errorId = identificacao.isEmpty
+          ? "A identificação não pode ser vazia"
+          : null;
+    });
+    return;
   }
 
-  void cadastrarPessoa() {
-    String nome = nomeController.text.trim();
-    String identificacao = idController.text.trim();
+  bool idRepetido = listPessoas.any(
+    (pessoa) =>
+        pessoa.identificacao == identificacao &&
+        pessoa.noAmbiente,
+  );
 
-    //Regra 3: não deixa cadastrar com campo vazio
-    if (nome.isEmpty || identificacao.isEmpty) {
-      setState(() {
-        errorNome = nome.isEmpty ? "O nome não pode ser vazio" : null;
-        errorId = identificacao.isEmpty ? "A identificação não pode ser vazia" : null;
-      });
-      return;
-    }
-
-    //Regra 4: não pode ter duas pessoas com a mesma identificação dentro do camarote
-    bool idRepetido = listPessoas.any(
-      (pessoa) => pessoa.identificacao == identificacao && pessoa.noAmbiente,
-    );
-    if (idRepetido) {
-      setState(() {
-        errorNome = null;
-        errorId = "Já tem uma pessoa com essa identificação no camarote";
-      });
-      return;
-    }
-
-    //Regra 1: se estiver lotado ninguém entra
-    if (isFull) {
-      setState(() {
-        errorNome = null;
-        errorId = null;
-      });
-      return;
-    }
-
+  if (idRepetido) {
     setState(() {
-      Pessoa newPessoa = Pessoa(
-        nome: nome,
-        identificacao: identificacao,
-        dataEntrada: DateTime.now(),
-      );
-      listPessoas.add(newPessoa);
+      errorNome = null;
+      errorId = "Já tem uma pessoa com essa identificação no camarote";
+    });
+
+    mostrarFeedback(
+      "Já existe uma pessoa com essa identificação no camarote!",
+    );
+    return;
+  }
+
+  if (isFull) {
+    setState(() {
       errorNome = null;
       errorId = null;
     });
-    pessoaRepository.saveListaPessoas(listPessoas);
-    nomeController.clear();
-    idController.clear();
+
+    mostrarFeedback(
+      "Não é possível realizar a entrada. Ambiente lotado!",
+    );
+    return;
   }
 
-  void registrarSaida(Pessoa pessoa) {
-    //Regra 2: quem já saiu não pode registrar a saída de novo
-    if (!pessoa.noAmbiente) {
-      return;
-    }
-    setState(() {
-      pessoa.dataSaida = DateTime.now();
-    });
-    pessoaRepository.saveListaPessoas(listPessoas);
+  Pessoa newPessoa = Pessoa(
+    nome: nome,
+    identificacao: identificacao,
+    dataEntrada: DateTime.now(),
+  );
+
+  setState(() {
+    listPessoas.add(newPessoa);
+    errorNome = null;
+    errorId = null;
+  });
+
+  pessoaRepository.saveListaPessoas(listPessoas);
+
+  nomeController.clear();
+  idController.clear();
+
+  mostrarFeedback("Pessoa cadastrada com sucesso!");
+}
+
+
+  
+Future<void> registrarSaida(Pessoa pessoa) async {
+  if (!pessoa.noAmbiente) {
+    return;
   }
+
+  final bool? confirmar = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text("Registrar saída?"),
+        content: Text(
+          "Deseja realmente registrar a saída de ${pessoa.nome}?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            child: const Text("CANCELAR"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text("CONFIRMAR"),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmar != true || !mounted) {
+    return;
+  }
+
+  if (!pessoa.noAmbiente) {
+    return;
+  }
+
+  setState(() {
+    pessoa.dataSaida = DateTime.now();
+  });
+
+  pessoaRepository.saveListaPessoas(listPessoas);
+
+  mostrarFeedback("Saída registrada com sucesso!");
+}
+
 }
